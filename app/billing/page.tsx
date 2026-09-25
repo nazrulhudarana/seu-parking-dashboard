@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ref, onValue, set, update } from 'firebase/database';
+import { ref, onValue, set, update, onChildAdded } from 'firebase/database';
 import { db } from '../../lib/firebase';
 import { 
   Wallet, Receipt, Settings, Search, Plus, CreditCard, 
@@ -56,6 +56,62 @@ export default function BillingDashboard() {
     });
 
     return () => { unsubWallets(); unsubUsers(); unsubTrans(); unsubReceipts(); unsubExitLogs(); unsubSettings(); };
+  }, []);
+
+  // ================= AUTOMATED BACKGROUND EMAIL & PDF NOTIFICATION LISTENER =================
+  useEffect(() => {
+    const entryLogsRef = ref(db, 'Logs/Entry');
+    const unsubscribeEntry = onChildAdded(entryLogsRef, async (snapshot) => {
+      const logData = snapshot.val();
+      if (logData && !logData.emailSent) {
+        try {
+          await fetch('/api/parking/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              uid: snapshot.key?.split('_')[0],
+              type: 'ENTRY',
+              entryTime: logData.Time,
+              slot: logData.AssignedSlot
+            })
+          });
+          await update(ref(db, `Logs/Entry/${snapshot.key}`), { emailSent: true });
+        } catch (err) {
+          console.error("Failed to send entry notification email:", err);
+        }
+      }
+    });
+
+    const exitReceiptsRef = ref(db, 'Receipts');
+    const unsubscribeExit = onChildAdded(exitReceiptsRef, async (snapshot) => {
+      const receiptData = snapshot.val();
+      if (receiptData && !receiptData.emailSent) {
+        try {
+          await fetch('/api/parking/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              uid: receiptData.uid,
+              type: 'EXIT',
+              entryTime: receiptData.entryTime,
+              exitTime: receiptData.exitTime,
+              slot: receiptData.slot || 1,
+              duration: receiptData.duration,
+              fee: receiptData.fee,
+              remainingBalance: receiptData.remainingBalance
+            })
+          });
+          await update(ref(db, `Receipts/${snapshot.key}`), { emailSent: true });
+        } catch (err) {
+          console.error("Failed to send exit PDF invoice email:", err);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeEntry();
+      unsubscribeExit();
+    };
   }, []);
 
   useEffect(() => {
@@ -120,7 +176,6 @@ export default function BillingDashboard() {
     const timestamp = new Date().toLocaleString('en-GB');
     const txId = `TX-${Date.now()}`;
 
-    // Check if coming from Landing Page (can be passed via URL query or session storage)
     const urlParams = new URLSearchParams(window.location.search);
     const sourceRef = urlParams.get('source') || sessionStorage.getItem('traffic_source') || 'Direct Billing Page';
 
@@ -141,7 +196,7 @@ export default function BillingDashboard() {
         method: topupMethod,
         bkashNumber: topupMethod === 'bkash' ? bkashNumber : null,
         bkashTrxId: topupMethod === 'bkash' ? bkashTrxId : null,
-        source: sourceRef // Landing page / Traffic source tracking
+        source: sourceRef 
       };
 
       await update(ref(db), updates);
