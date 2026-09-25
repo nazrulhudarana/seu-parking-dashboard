@@ -60,6 +60,7 @@ export default function BillingDashboard() {
 
   // ================= AUTOMATED BACKGROUND EMAIL & PDF NOTIFICATION LISTENER =================
   useEffect(() => {
+    // 1. Entry Notification Listener
     const entryLogsRef = ref(db, 'Logs/Entry');
     const unsubscribeEntry = onChildAdded(entryLogsRef, async (snapshot) => {
       const logData = snapshot.val();
@@ -82,12 +83,13 @@ export default function BillingDashboard() {
       }
     });
 
-    const exitReceiptsRef = ref(db, 'Receipts');
-    const unsubscribeExit = onChildAdded(exitReceiptsRef, async (snapshot) => {
+    // 2. Exit / Receipt PDF Invoice Notification Listener
+    const receiptsRef = ref(db, 'Receipts');
+    const unsubscribeExit = onChildAdded(receiptsRef, async (snapshot) => {
       const receiptData = snapshot.val();
       if (receiptData && !receiptData.emailSent) {
         try {
-          await fetch('/api/parking/notify', {
+          const response = await fetch('/api/parking/notify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -101,7 +103,11 @@ export default function BillingDashboard() {
               remainingBalance: receiptData.remainingBalance
             })
           });
-          await update(ref(db, `Receipts/${snapshot.key}`), { emailSent: true });
+          
+          const result = await response.json();
+          if (result.success) {
+            await update(ref(db, `Receipts/${snapshot.key}`), { emailSent: true });
+          }
         } catch (err) {
           console.error("Failed to send exit PDF invoice email:", err);
         }

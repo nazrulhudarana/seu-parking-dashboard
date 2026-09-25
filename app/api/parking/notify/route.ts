@@ -78,62 +78,49 @@ export async function POST(req: Request) {
     }
 
     if (type === 'EXIT') {
-      // ================= EMBEDDED VECTOR LOGO SVG BUFFER =================
-      const svgLogo = `
-        <svg width="180" height="50" viewBox="0 0 360 100" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#f97316" />
-              <stop offset="100%" stop-color="#eab308" />
-            </linearGradient>
-          </defs>
-          <path d="M10 10 H50 C75 10 90 25 90 45 C90 65 75 80 50 80 H30 V95 H10 Z" fill="url(#grad1)" />
-          <text x="105" y="42" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#0f172a" letter-spacing="2">SEU</text>
-          <text x="105" y="75" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="#f97316" letter-spacing="1">PARKING</text>
-          <text x="235" y="73" font-family="Arial, sans-serif" font-style="italic" font-weight="bold" font-size="11" fill="#64748b">By Nazrul</text>
-        </svg>
-      `;
-      const svgBuffer = Buffer.from(svgLogo);
-
       const pdfBuffers: Buffer[] = [];
       const doc = new PDFDocument({ margin: 50 });
       doc.on('data', (chunk: Buffer) => pdfBuffers.push(chunk));
 
-      doc.image(svgBuffer, 50, 40, { width: 120 });
-      doc.fontSize(20).text('SEU Smart Parking', 200, 50, { align: 'right' });
-      doc.fontSize(10).fillColor('#64748b').text('Official Parking Breakdown Invoice', 200, 75, { align: 'right' });
-      doc.moveDown(2);
+      // Native Vector Logo & Header Drawing (No external image error)
+      doc.roundedRect(50, 40, 35, 35, 6).fill('#f97316');
+      doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('P', 61, 48);
 
-      doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(50, 110).lineTo(550, 110).stroke();
+      doc.fontSize(20).fillColor('#0f172a').text('SEU Smart Parking', 95, 42);
+      doc.fontSize(10).fillColor('#64748b').font('Helvetica').text('Official Parking Breakdown Invoice', 95, 66);
+      doc.fontSize(9).fillColor('#f97316').text('By Nazrul', 330, 45, { align: 'right' });
+
+      doc.moveDown(2);
+      doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(50, 105).lineTo(550, 105).stroke();
       doc.moveDown(1);
 
       doc.fontSize(10).fillColor('#1e293b');
-      doc.text(`Customer Name  : ${userName}`, 50, 125);
-      doc.text(`Vehicle No     : ${vehicleNo}`, 50, 140);
-      doc.text(`Card UID       : ${uid}`, 50, 155);
+      doc.text(`Customer Name  : ${userName}`, 50, 120);
+      doc.text(`Vehicle No     : ${vehicleNo}`, 50, 135);
+      doc.text(`Card UID       : ${uid}`, 50, 150);
 
-      doc.text(`Entry Time     : ${entryTime}`, 320, 125);
-      doc.text(`Exit Time      : ${exitTime}`, 320, 140);
-      doc.text(`Allocated Slot : Slot ${slot}`, 320, 155);
+      doc.text(`Entry Time     : ${entryTime}`, 320, 120);
+      doc.text(`Exit Time      : ${exitTime}`, 320, 135);
+      doc.text(`Allocated Slot : Slot ${slot}`, 320, 150);
       doc.moveDown(2);
 
-      doc.rect(50, 190, 500, 25).fill('#0f172a');
-      doc.fillColor('#ffffff').fontSize(10).text('Description / Breakdown', 60, 198);
-      doc.text('Duration', 300, 198);
-      doc.text('Amount (BDT)', 450, 198, { align: 'right' });
+      doc.rect(50, 185, 500, 25).fill('#0f172a');
+      doc.fillColor('#ffffff').fontSize(10).text('Description / Breakdown', 60, 193);
+      doc.text('Duration', 300, 193);
+      doc.text('Amount (BDT)', 450, 193, { align: 'right' });
 
       doc.fillColor('#1e293b').fontSize(10);
-      doc.text(`Parking Fee (${duration})`, 60, 230);
-      doc.text(duration, 300, 230);
-      doc.text(`Tk ${fee}.00`, 450, 230, { align: 'right' });
+      doc.text(`Parking Fee (${duration})`, 60, 225);
+      doc.text(duration, 300, 225);
+      doc.text(`Tk ${fee}.00`, 450, 225, { align: 'right' });
 
-      doc.strokeColor('#e2e8f0').lineWidth(1).moveTo(50, 255).lineTo(550, 255).stroke();
+      doc.strokeColor('#e2e8f0').lineWidth(1).moveTo(50, 250).lineTo(550, 250).stroke();
 
-      doc.text('Total Deducted Fee:', 330, 280);
-      doc.text(`Tk ${fee}.00`, 450, 280, { align: 'right' });
+      doc.text('Total Deducted Fee:', 330, 275);
+      doc.text(`Tk ${fee}.00`, 450, 275, { align: 'right' });
 
-      doc.text('Remaining Wallet Balance:', 330, 305);
-      doc.text(`Tk ${remainingBalance}.00`, 450, 305, { align: 'right' });
+      doc.text('Remaining Wallet Balance:', 330, 295);
+      doc.text(`Tk ${remainingBalance}.00`, 450, 295, { align: 'right' });
 
       doc.fontSize(9).fillColor('#94a3b8').text('Thank you for parking with SEU Smart Parking!', 50, 450, { align: 'center' });
       doc.end();
