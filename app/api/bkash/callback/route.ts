@@ -81,57 +81,44 @@ export async function GET(req: Request) {
     };
     await update(ref(db), updates);
 
-    // ================= EMBEDDED VECTOR LOGO SVG BUFFER =================
-    const svgLogo = `
-      <svg width="180" height="50" viewBox="0 0 360 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#f97316" />
-            <stop offset="100%" stop-color="#eab308" />
-          </linearGradient>
-        </defs>
-        <path d="M10 10 H50 C75 10 90 25 90 45 C90 65 75 80 50 80 H30 V95 H10 Z" fill="url(#grad1)" />
-        <text x="105" y="42" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#0f172a" letter-spacing="2">SEU</text>
-        <text x="105" y="75" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="#f97316" letter-spacing="1">PARKING</text>
-        <text x="235" y="73" font-family="Arial, sans-serif" font-style="italic" font-weight="bold" font-size="11" fill="#64748b">By Nazrul</text>
-      </svg>
-    `;
-    const svgBuffer = Buffer.from(svgLogo);
-
     // ================= PDF GENERATION IN MEMORY BUFFER =================
     const pdfBuffers: Buffer[] = [];
     const doc = new PDFDocument({ margin: 50 });
     doc.on('data', (chunk: Buffer) => pdfBuffers.push(chunk));
 
-    doc.image(svgBuffer, 50, 40, { width: 120 });
-    doc.fontSize(20).text('SEU Smart Parking', 200, 50, { align: 'right' });
-    doc.fontSize(10).fillColor('#64748b').text('Official bKash Tax Invoice / Receipt', 200, 75, { align: 'right' });
-    doc.moveDown(2);
+    // Native Vector Logo & Header Drawing (Fixed Unknown Image Format Error)
+    doc.roundedRect(50, 40, 35, 35, 6).fill('#f97316');
+    doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('P', 61, 48);
 
-    doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(50, 110).lineTo(550, 110).stroke();
+    doc.fontSize(20).fillColor('#0f172a').text('SEU Smart Parking', 95, 42);
+    doc.fontSize(10).fillColor('#64748b').font('Helvetica').text('Official bKash Tax Invoice / Receipt', 95, 66);
+    doc.fontSize(9).fillColor('#f97316').text('By Nazrul', 330, 45, { align: 'right' });
+
+    doc.moveDown(2);
+    doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(50, 105).lineTo(550, 105).stroke();
     doc.moveDown(1);
 
     doc.fontSize(10).fillColor('#1e293b');
-    doc.text(`Transaction ID : ${trxID}`, 50, 125);
-    doc.text(`Date & Time    : ${timestamp}`, 50, 140);
-    doc.text(`Payment Gateway: bKash Tokenized`, 50, 155);
+    doc.text(`Transaction ID : ${trxID}`, 50, 120);
+    doc.text(`Date & Time    : ${timestamp}`, 50, 135);
+    doc.text(`Payment Gateway: bKash Tokenized`, 50, 150);
 
-    doc.text(`Customer Name  : ${userName}`, 320, 125);
-    doc.text(`Vehicle No     : ${vehicleNo}`, 320, 140);
-    doc.text(`Card UID       : ${uid}`, 320, 155);
+    doc.text(`Customer Name  : ${userName}`, 320, 120);
+    doc.text(`Vehicle No     : ${vehicleNo}`, 320, 135);
+    doc.text(`Card UID       : ${uid}`, 320, 150);
     doc.moveDown(2);
 
-    doc.rect(50, 190, 500, 25).fill('#0f172a');
-    doc.fillColor('#ffffff').fontSize(10).text('Description', 60, 198);
-    doc.text('Method', 300, 198);
-    doc.text('Amount (BDT)', 450, 198, { align: 'right' });
+    doc.rect(50, 185, 500, 25).fill('#0f172a');
+    doc.fillColor('#ffffff').fontSize(10).text('Description', 60, 193);
+    doc.text('Method', 300, 193);
+    doc.text('Amount (BDT)', 450, 193, { align: 'right' });
 
     doc.fillColor('#1e293b').fontSize(10);
-    doc.text('RFID Parking Wallet Top-Up', 60, 230);
-    doc.text('bKash Checkout', 300, 230);
-    doc.text(`Tk ${amount}.00`, 450, 230, { align: 'right' });
+    doc.text('RFID Parking Wallet Top-Up', 60, 225);
+    doc.text('bKash Checkout', 300, 225);
+    doc.text(`Tk ${amount}.00`, 450, 225, { align: 'right' });
 
-    doc.strokeColor('#e2e8f0').lineWidth(1).moveTo(50, 255).lineTo(550, 255).stroke();
+    doc.strokeColor('#e2e8f0').lineWidth(1).moveTo(50, 250).lineTo(550, 250).stroke();
 
     doc.text('Subtotal:', 350, 275);
     doc.text(`Tk ${amount}.00`, 450, 275, { align: 'right' });
