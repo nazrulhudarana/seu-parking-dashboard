@@ -78,10 +78,28 @@ export async function POST(req: Request) {
     }
 
     if (type === 'EXIT') {
+      // ================= EMBEDDED VECTOR LOGO SVG BUFFER =================
+      const svgLogo = `
+        <svg width="180" height="50" viewBox="0 0 360 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#f97316" />
+              <stop offset="100%" stop-color="#eab308" />
+            </linearGradient>
+          </defs>
+          <path d="M10 10 H50 C75 10 90 25 90 45 C90 65 75 80 50 80 H30 V95 H10 Z" fill="url(#grad1)" />
+          <text x="105" y="42" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#0f172a" letter-spacing="2">SEU</text>
+          <text x="105" y="75" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="#f97316" letter-spacing="1">PARKING</text>
+          <text x="235" y="73" font-family="Arial, sans-serif" font-style="italic" font-weight="bold" font-size="11" fill="#64748b">By Nazrul</text>
+        </svg>
+      `;
+      const svgBuffer = Buffer.from(svgLogo);
+
       const pdfBuffers: Buffer[] = [];
       const doc = new PDFDocument({ margin: 50 });
       doc.on('data', (chunk: Buffer) => pdfBuffers.push(chunk));
 
+      doc.image(svgBuffer, 50, 40, { width: 120 });
       doc.fontSize(20).text('SEU Smart Parking', 200, 50, { align: 'right' });
       doc.fontSize(10).fillColor('#64748b').text('Official Parking Breakdown Invoice', 200, 75, { align: 'right' });
       doc.moveDown(2);
