@@ -3,8 +3,6 @@ import { db } from '@/lib/firebase';
 import { ref, get, update } from 'firebase/database';
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -83,16 +81,10 @@ export async function GET(req: Request) {
     };
     await update(ref(db), updates);
 
-    // ================= PDF GENERATION =================
-    const pdfPath = path.join(process.cwd(), `public/invoice_${trxID}.pdf`);
+    // ================= PDF GENERATION IN MEMORY BUFFER =================
+    const pdfBuffers: Buffer[] = [];
     const doc = new PDFDocument({ margin: 50 });
-    const stream = fs.createWriteStream(pdfPath);
-    doc.pipe(stream);
-
-    const logoPath = path.join(process.cwd(), 'public/logo.PNG');
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 50, 45, { width: 100 });
-    }
+    doc.on('data', (chunk: Buffer) => pdfBuffers.push(chunk));
 
     doc.fontSize(20).text('SEU Smart Parking', 200, 50, { align: 'right' });
     doc.fontSize(10).fillColor('#64748b').text('Official bKash Tax Invoice / Receipt', 200, 75, { align: 'right' });
@@ -135,7 +127,11 @@ export async function GET(req: Request) {
     doc.fontSize(9).fillColor('#94a3b8').text('Thank you for using SEU Smart Parking!', 50, 450, { align: 'center' });
     doc.end();
 
-    await new Promise<void>((resolve) => stream.on('finish', () => resolve()));
+    const pdfBuffer = await new Promise<Buffer>((resolve) => {
+      doc.on('end', () => {
+        resolve(Buffer.concat(pdfBuffers));
+      });
+    });
 
     // ================= SEND EMAIL VIA FIREBASE SMTP CONFIG =================
     const smtpSnap = await get(ref(db, 'SMTPConfig'));
@@ -160,7 +156,7 @@ export async function GET(req: Request) {
         attachments: [
           {
             filename: `Invoice_${trxID}.pdf`,
-            path: pdfPath,
+            content: pdfBuffer,
             contentType: 'application/pdf'
           }
         ]

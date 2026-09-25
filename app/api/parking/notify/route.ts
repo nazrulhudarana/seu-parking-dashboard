@@ -3,8 +3,6 @@ import { db } from '@/lib/firebase';
 import { ref, get } from 'firebase/database';
 import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
-import path from 'path';
 
 export async function POST(req: Request) {
   try {
@@ -80,15 +78,9 @@ export async function POST(req: Request) {
     }
 
     if (type === 'EXIT') {
-      const pdfPath = path.join(process.cwd(), `public/parking_invoice_${Date.now()}.pdf`);
+      const pdfBuffers: Buffer[] = [];
       const doc = new PDFDocument({ margin: 50 });
-      const stream = fs.createWriteStream(pdfPath);
-      doc.pipe(stream);
-
-      const logoPath = path.join(process.cwd(), 'public/logo.PNG');
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 45, { width: 100 });
-      }
+      doc.on('data', (chunk: Buffer) => pdfBuffers.push(chunk));
 
       doc.fontSize(20).text('SEU Smart Parking', 200, 50, { align: 'right' });
       doc.fontSize(10).fillColor('#64748b').text('Official Parking Breakdown Invoice', 200, 75, { align: 'right' });
@@ -128,7 +120,11 @@ export async function POST(req: Request) {
       doc.fontSize(9).fillColor('#94a3b8').text('Thank you for parking with SEU Smart Parking!', 50, 450, { align: 'center' });
       doc.end();
 
-      await new Promise<void>((resolve) => stream.on('finish', () => resolve()));
+      const pdfBuffer = await new Promise<Buffer>((resolve) => {
+        doc.on('end', () => {
+          resolve(Buffer.concat(pdfBuffers));
+        });
+      });
 
       await transporter.sendMail({
         from: `"SEU Smart Parking" <${smtp.user}>`,
@@ -138,7 +134,7 @@ export async function POST(req: Request) {
         attachments: [
           {
             filename: `Parking_Invoice_${slot}.pdf`,
-            path: pdfPath,
+            content: pdfBuffer,
             contentType: 'application/pdf'
           }
         ]
