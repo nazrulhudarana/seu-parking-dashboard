@@ -127,7 +127,7 @@ export async function GET(req: Request) {
       doc.fontSize(9).fillColor('#94a3b8').text('Thank you for using SEU Smart Parking!', 50, 450, { align: 'center' });
       doc.end();
 
-      await new Promise((resolve) => stream.on('finish', resolve));
+      await new Promise<void>((resolve) => stream.on('finish', () => resolve()));
 
       // ================= SEND EMAIL VIA FIREBASE SMTP CONFIG =================
       const smtpSnap = await get(ref(db, 'SMTPConfig'));

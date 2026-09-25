@@ -14,7 +14,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Missing required parameters.' }, { status: 400 });
     }
 
-    // Fetch user details
     const userSnap = await get(ref(db, `AuthorizedCards/${uid}`));
     if (!userSnap.exists()) {
       return NextResponse.json({ success: false, message: 'User not found.' }, { status: 404 });
@@ -28,10 +27,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'User email not configured.' }, { status: 400 });
     }
 
-    // Fetch SMTP config from Firebase settings
     const smtpSnap = await get(ref(db, 'SMTPConfig'));
     if (!smtpSnap.exists()) {
-      return NextResponse.json({ success: false, message: 'SMTP settings not configured in admin panel.' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'SMTP settings not configured.' }, { status: 400 });
     }
     const smtp = smtpSnap.val();
 
@@ -42,11 +40,9 @@ export async function POST(req: Request) {
       auth: { user: smtp.user, pass: smtp.pass }
     });
 
-    // Fetch Billing Settings for rates
     const billingSnap = await get(ref(db, 'BillingSettings'));
     const billing = billingSnap.exists() ? billingSnap.val() : { firstHourRate: 30, additionalHourRate: 20 };
 
-    // ================= 1. ENTRY NOTIFICATION EMAIL =================
     if (type === 'ENTRY') {
       const walletSnap = await get(ref(db, `Wallets/${uid}`));
       const balance = walletSnap.exists() ? (walletSnap.val().balance || 0) : 0;
@@ -83,14 +79,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Entry email sent successfully.' });
     }
 
-    // ================= 2. EXIT NOTIFICATION & PDF INVOICE =================
     if (type === 'EXIT') {
       const pdfPath = path.join(process.cwd(), `public/parking_invoice_${Date.now()}.pdf`);
       const doc = new PDFDocument({ margin: 50 });
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
 
-      // Logo branding
       const logoPath = path.join(process.cwd(), 'public/logo.PNG');
       if (fs.existsSync(logoPath)) {
         doc.image(logoPath, 50, 45, { width: 100 });
@@ -113,13 +107,11 @@ export async function POST(req: Request) {
       doc.text(`Allocated Slot : Slot ${slot}`, 320, 155);
       doc.moveDown(2);
 
-      // Table Header
       doc.rect(50, 190, 500, 25).fill('#0f172a');
       doc.fillColor('#ffffff').fontSize(10).text('Description / Breakdown', 60, 198);
       doc.text('Duration', 300, 198);
       doc.text('Amount (BDT)', 450, 198, { align: 'right' });
 
-      // Table Row
       doc.fillColor('#1e293b').fontSize(10);
       doc.text(`Parking Fee (${duration})`, 60, 230);
       doc.text(duration, 300, 230);
@@ -133,10 +125,10 @@ export async function POST(req: Request) {
       doc.text('Remaining Wallet Balance:', 330, 305);
       doc.text(`Tk ${remainingBalance}.00`, 450, 305, { align: 'right' });
 
-      doc.fontSize(9).fillColor('#94a3b8').text('Thank you for parking with SEU Smart Parking by Nazrul!', 50, 450, { align: 'center' });
+      doc.fontSize(9).fillColor('#94a3b8').text('Thank you for parking with SEU Smart Parking!', 50, 450, { align: 'center' });
       doc.end();
 
-      await new Promise((resolve) => stream.on('finish', resolve));
+      await new Promise<void>((resolve) => stream.on('finish', () => resolve()));
 
       await transporter.sendMail({
         from: `"SEU Smart Parking" <${smtp.user}>`,
