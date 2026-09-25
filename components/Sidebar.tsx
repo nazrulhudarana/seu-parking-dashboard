@@ -14,14 +14,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Parking Slots', href: '/parking-slots', icon: Car },
     { name: 'Card Management', href: '/card-management', icon: CreditCard },
     { name: 'Billing & Wallet', href: '/billing', icon: Wallet },
     { name: 'Parking Logs', href: '/parking-logs', icon: FileText },
     { name: 'Users', href: '/users', icon: Users },
     { name: 'Wi-Fi Config', href: '/wifi-config', icon: Wifi },
-    { name: 'LCD Widget', href: '/lcd-widget', icon: Tv }, // নতুন এলসিডি উইজেট কন্ট্রোলার ট্যাব
+    { name: 'LCD Widget', href: '/lcd-widget', icon: Tv },
     { name: 'Reports', href: '/reports', icon: PieChart },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];

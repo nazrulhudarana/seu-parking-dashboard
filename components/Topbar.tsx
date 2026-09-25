@@ -77,7 +77,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   const handleLogout = () => {
     sessionStorage.removeItem('seu_admin_logged');
-    router.push('/login');
+    router.push('/'); // <--- Logout korle sohoje landing page-e (/) niye jabe
   };
 
   const totalNotificationsCount = lowBalanceUsers.length + liveActivities.length;
@@ -89,7 +89,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       <div className="flex items-center gap-3 z-10">
         <button 
           onClick={onMenuClick}
-        className="md:hidden text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/50 border border-slate-700/50"
+          className="md:hidden text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/50 border border-slate-700/50"
         >
           <Menu size={20} />
         </button>
@@ -271,7 +271,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/15 transition-all border border-transparent hover:border-rose-500/20"
                   >
                     <LogOut size={16} /> Logout System
                   </button>

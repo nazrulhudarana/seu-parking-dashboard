@@ -5,7 +5,7 @@ import { ref, onValue, set, update } from 'firebase/database';
 import { db } from '../../lib/firebase';
 import { 
   Wallet, Receipt, Settings, Search, Plus, CreditCard, 
-  AlertTriangle, CheckCircle2, Download, Printer, Wifi, History, User, ArrowUpRight, ArrowDownRight, X, Eye 
+  AlertTriangle, CheckCircle2, Download, Printer, Wifi, History, User, ArrowUpRight, ArrowDownRight, X, Eye, Smartphone 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -18,7 +18,7 @@ export default function BillingDashboard() {
   const [users, setUsers] = useState<Record<string, any>>({});
   const [transactions, setTransactions] = useState<Record<string, any>>({});
   const [receipts, setReceipts] = useState<Record<string, any>>({});
-  const [exitLogs, setExitLogs] = useState<Record<string, any>>({}); // এন্ট্রি-এক্সিট টাইমের জন্য
+  const [exitLogs, setExitLogs] = useState<Record<string, any>>({}); 
   const [settings, setSettings] = useState({
     firstHourRate: 30, additionalHourRate: 20, gracePeriodMins: 10, maxDailyCharge: 200, minBalanceRequired: 50
   });
@@ -29,6 +29,11 @@ export default function BillingDashboard() {
   const [viewReceiptId, setViewReceiptId] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
+
+  // bKash Top-up Extra States
+  const [topupMethod, setTopupMethod] = useState<'manual' | 'bkash'>('bkash');
+  const [bkashNumber, setBkashNumber] = useState('');
+  const [bkashTrxId, setBkashTrxId] = useState('');
 
   // RFID Scan States
   const [isScanningBilling, setIsScanningBilling] = useState(false);
@@ -45,7 +50,7 @@ export default function BillingDashboard() {
     const unsubUsers = onValue(ref(db, 'AuthorizedCards'), s => setUsers(s.val() || {}));
     const unsubTrans = onValue(ref(db, 'Transactions'), s => setTransactions(s.val() || {}));
     const unsubReceipts = onValue(ref(db, 'Receipts'), s => setReceipts(s.val() || {}));
-    const unsubExitLogs = onValue(ref(db, 'Logs/Exit'), s => setExitLogs(s.val() || {})); // এক্সিট লগস ফেচ
+    const unsubExitLogs = onValue(ref(db, 'Logs/Exit'), s => setExitLogs(s.val() || {})); 
     const unsubSettings = onValue(ref(db, 'BillingSettings'), s => {
       if(s.exists()) setSettings(s.val());
     });
@@ -99,24 +104,52 @@ export default function BillingDashboard() {
   const handleRecharge = async (uid: string, amount: number) => {
     if (!amount || amount <= 0) return;
     
+    if (topupMethod === 'bkash') {
+      if (!bkashNumber || bkashNumber.length < 11) {
+        showToast('Please enter a valid 11-digit bKash number.', 'error');
+        return;
+      }
+      if (!bkashTrxId) {
+        showToast('Please enter the bKash Transaction ID (TrxID).', 'error');
+        return;
+      }
+    }
+
     const currentBal = wallets[uid]?.balance || 0;
     const newBal = currentBal + amount;
     const timestamp = new Date().toLocaleString('en-GB');
     const txId = `TX-${Date.now()}`;
+
+    // Check if coming from Landing Page (can be passed via URL query or session storage)
+    const urlParams = new URLSearchParams(window.location.search);
+    const sourceRef = urlParams.get('source') || sessionStorage.getItem('traffic_source') || 'Direct Billing Page';
 
     try {
       const updates: any = {};
       updates[`Wallets/${uid}/balance`] = newBal;
       updates[`Wallets/${uid}/lastRecharge`] = timestamp;
       updates[`Wallets/${uid}/status`] = 'ACTIVE';
+      
       updates[`Transactions/${txId}`] = {
-        uid, type: 'Recharge', amount, prevBalance: currentBal, newBalance: newBal, timestamp, desc: 'Manual Recharge via Admin'
+        uid, 
+        type: topupMethod === 'bkash' ? 'bKash Top-up' : 'Manual Recharge', 
+        amount, 
+        prevBalance: currentBal, 
+        newBalance: newBal, 
+        timestamp, 
+        desc: topupMethod === 'bkash' ? `Top-up via bKash` : 'Manual Recharge via Admin',
+        method: topupMethod,
+        bkashNumber: topupMethod === 'bkash' ? bkashNumber : null,
+        bkashTrxId: topupMethod === 'bkash' ? bkashTrxId : null,
+        source: sourceRef // Landing page / Traffic source tracking
       };
 
       await update(ref(db), updates);
       setRechargeModal(null);
       setCustomAmount('');
-      showToast(`Successfully recharged ৳${amount} for ${users[uid]?.name || uid}`, 'success');
+      setBkashNumber('');
+      setBkashTrxId('');
+      showToast(`Successfully recharged ৳${amount} via ${topupMethod === 'bkash' ? 'bKash' : 'Admin'}!`, 'success');
     } catch (err) {
       showToast('Recharge failed. Check network.', 'error');
     }
@@ -128,7 +161,6 @@ export default function BillingDashboard() {
     showToast('Billing rates updated successfully!', 'success');
   };
 
-  // ================= PRINT & DOWNLOAD HANDLERS =================
   const handlePrint = (rId: string, bill: any, userName: string, entryTime: string, exitTime: string) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -215,7 +247,7 @@ Thank you for using SEU Smart Parking!
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <Wallet className="text-cyan-400" /> Billing & Wallets
           </h2>
-          <p className="text-sm text-slate-400 mt-1">Manage RFID Wallets, Billing & Revenues.</p>
+          <p className="text-sm text-slate-400 mt-1">Manage RFID Wallets, bKash Top-ups & Revenues.</p>
         </div>
       </div>
 
@@ -345,7 +377,7 @@ Thank you for using SEU Smart Parking!
                       onClick={() => setRechargeModal(uid)}
                       className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md"
                     >
-                      <Plus size={14} /> Recharge
+                      <Plus size={14} /> Top Up / Recharge
                     </button>
                     <button 
                       onClick={() => { setHistoryModalUid(uid); setHistorySubTab('recharges'); }}
@@ -384,8 +416,6 @@ Thank you for using SEU Smart Parking!
               }).map(rId => {
                 const bill = receipts[rId];
                 const userName = users[bill.uid]?.name || "Unknown";
-                
-                // Fetch Entry and Exit Time
                 const entryTime = bill.entryTime || exitLogs[bill.uid]?.EntryTime || "N/A";
                 const exitTime = bill.exitTime || exitLogs[bill.uid]?.ExitTime || "N/A";
 
@@ -465,28 +495,71 @@ Thank you for using SEU Smart Parking!
         </motion.div>
       )}
 
-      {/* RECHARGE MODAL */}
+      {/* RECHARGE / TOP-UP MODAL (WITH BKASH & LANDING PAGE TRACKING) */}
       <AnimatePresence>
         {rechargeModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-900 border border-cyan-500/40 p-6 rounded-3xl w-full max-w-md shadow-2xl">
-              <h3 className="text-lg font-bold text-white mb-1">Recharge Wallet</h3>
-              <p className="text-xs text-slate-400 mb-6">User: <span className="font-bold text-cyan-400">{users[rechargeModal]?.name}</span></p>
+              <h3 className="text-lg font-bold text-white mb-1">Top Up Wallet</h3>
+              <p className="text-xs text-slate-400 mb-4">User: <span className="font-bold text-cyan-400">{users[rechargeModal]?.name}</span></p>
+              
+              {/* Method Switcher */}
+              <div className="flex gap-2 mb-4 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button 
+                  onClick={() => setTopupMethod('bkash')} 
+                  className={clsx("flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5", topupMethod === 'bkash' ? "bg-pink-600 text-white" : "text-slate-400 hover:text-white")}
+                >
+                  <Smartphone size={14} /> bKash Top-up
+                </button>
+                <button 
+                  onClick={() => setTopupMethod('manual')} 
+                  className={clsx("flex-1 py-2 text-xs font-bold rounded-lg transition-all", topupMethod === 'manual' ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white")}
+                >
+                  Cash / Admin
+                </button>
+              </div>
+
+              {/* bKash Specific Inputs */}
+              {topupMethod === 'bkash' && (
+                <div className="space-y-3 mb-4 bg-slate-950/60 p-3.5 rounded-xl border border-pink-500/30">
+                  <p className="text-[11px] text-pink-400 font-medium">Send money to bKash Merchant/Personal: <strong className="text-white">017XXXXXXXX</strong> and provide details below:</p>
+                  <div>
+                    <label className="text-[10px] text-slate-400 uppercase">Your bKash Number</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 018XXXXXXXX" 
+                      value={bkashNumber} 
+                      onChange={e => setBkashNumber(e.target.value)} 
+                      className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white outline-none focus:border-pink-500" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 uppercase">Transaction ID (TrxID)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. 9H76K3L2M1" 
+                      value={bkashTrxId} 
+                      onChange={e => setBkashTrxId(e.target.value)} 
+                      className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white outline-none focus:border-pink-500 uppercase font-mono" 
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {[100, 200, 500, 1000].map(amt => (
-                  <button key={amt} onClick={() => handleRecharge(rechargeModal, amt)} className="py-3 rounded-xl bg-slate-800 hover:bg-cyan-700 hover:text-white text-slate-300 font-bold transition-colors border border-slate-700 hover:border-cyan-500">
+                  <button key={amt} onClick={() => handleRecharge(rechargeModal, amt)} className="py-2.5 rounded-xl bg-slate-800 hover:bg-cyan-700 hover:text-white text-slate-300 font-bold transition-colors border border-slate-700 hover:border-cyan-500">
                     ৳{amt}
                   </button>
                 ))}
               </div>
               
               <div className="flex gap-2">
-                <input type="number" placeholder="Custom Amount" value={customAmount} onChange={e => setCustomAmount(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 text-white outline-none focus:border-cyan-500" />
-                <button onClick={() => handleRecharge(rechargeModal, Number(customAmount))} className="px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-colors">Add</button>
+                <input type="number" placeholder="Custom Amount" value={customAmount} onChange={e => setCustomAmount(e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 text-white outline-none focus:border-cyan-500 text-sm" />
+                <button onClick={() => handleRecharge(rechargeModal, Number(customAmount))} className={clsx("px-6 font-bold rounded-xl transition-colors text-white text-sm", topupMethod === 'bkash' ? "bg-pink-600 hover:bg-pink-500" : "bg-emerald-600 hover:bg-emerald-500")}>Pay / Top Up</button>
               </div>
               
-              <button onClick={() => setRechargeModal(null)} className="w-full mt-6 py-2 text-slate-400 hover:text-white transition-colors">Cancel</button>
+              <button onClick={() => setRechargeModal(null)} className="w-full mt-5 py-2 text-slate-400 hover:text-white transition-colors text-xs">Cancel</button>
             </motion.div>
           </div>
         )}
@@ -542,7 +615,7 @@ Thank you for using SEU Smart Parking!
         )}
       </AnimatePresence>
 
-      {/* TRANSACTION & PARKING HISTORY MODAL */}
+      {/* TRANSACTION & PARKING HISTORY MODAL (WITH BKASH & LANDING SOURCE DETAILS) */}
       <AnimatePresence>
         {historyModalUid && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
@@ -558,7 +631,7 @@ Thank you for using SEU Smart Parking!
 
               <div className="flex gap-2 bg-slate-950 p-1.5 rounded-xl mb-4 border border-slate-800">
                 <button onClick={() => setHistorySubTab('recharges')} className={clsx("flex-1 py-2 text-xs font-bold rounded-lg transition-all", historySubTab === 'recharges' ? "bg-emerald-600 text-white shadow" : "text-slate-400 hover:text-white")}>
-                  Recharges ({Object.keys(transactions).filter(txId => transactions[txId].uid === historyModalUid).length})
+                  Recharges & Top-ups ({Object.keys(transactions).filter(txId => transactions[txId].uid === historyModalUid).length})
                 </button>
                 <button onClick={() => setHistorySubTab('parking')} className={clsx("flex-1 py-2 text-xs font-bold rounded-lg transition-all", historySubTab === 'parking' ? "bg-cyan-600 text-white shadow" : "text-slate-400 hover:text-white")}>
                   Parking Receipts ({Object.keys(receipts).filter(rId => receipts[rId].uid === historyModalUid).length})
@@ -580,18 +653,42 @@ Thank you for using SEU Smart Parking!
                         })
                         .map(txId => {
                           const tx = transactions[txId];
+                          const isBkash = tx.method === 'bkash' || tx.type === 'bKash Top-up';
+
                           return (
-                            <div key={txId} className="bg-slate-950 border border-slate-800/80 p-3.5 rounded-xl flex items-center justify-between text-xs">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                                  <ArrowDownRight size={16} />
+                            <div key={txId} className="bg-slate-950 border border-slate-800/80 p-3.5 rounded-xl text-xs space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className={clsx("w-8 h-8 rounded-lg flex items-center justify-center font-bold", isBkash ? "bg-pink-500/20 text-pink-400" : "bg-emerald-500/20 text-emerald-400")}>
+                                    {isBkash ? "৳" : <ArrowDownRight size={16} />}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-white">{tx.type} <span className="text-[10px] text-slate-400 font-normal">({tx.timestamp})</span></p>
+                                    <p className="text-[10px] text-slate-400 mt-0.5">Prev: ৳{tx.prevBalance} → New: ৳{tx.newBalance}</p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-bold text-white">Manual Recharge <span className="text-[10px] text-slate-400 font-normal">({tx.timestamp})</span></p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">Prev: ৳{tx.prevBalance} → New: ৳{tx.newBalance}</p>
+                                <div className={clsx("font-bold font-mono text-sm", isBkash ? "text-pink-400" : "text-emerald-400")}>+৳{tx.amount}</div>
+                              </div>
+
+                              {/* bKash Specific Details & Landing Source Info */}
+                              <div className="bg-slate-900/80 p-2 rounded-lg text-[10px] text-slate-300 space-y-1 border border-slate-800">
+                                {isBkash && (
+                                  <>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400">bKash Number:</span>
+                                      <span className="font-mono text-pink-400">{tx.bkashNumber || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400">TrxID:</span>
+                                      <span className="font-mono text-cyan-300 uppercase">{tx.bkashTrxId || 'N/A'}</span>
+                                    </div>
+                                  </>
+                                )}
+                                <div className="flex justify-between pt-1 border-t border-slate-800/60">
+                                  <span className="text-slate-400">Traffic Source / Landing Page:</span>
+                                  <span className="text-emerald-400 font-medium">{tx.source || 'Direct Billing Page'}</span>
                                 </div>
                               </div>
-                              <div className="font-bold font-mono text-sm text-emerald-400">+৳{tx.amount}</div>
                             </div>
                           );
                         })

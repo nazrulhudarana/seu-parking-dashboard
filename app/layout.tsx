@@ -1,6 +1,5 @@
 'use client';
 
-import type { Metadata } from "next";
 import "./globals.css";
 import DashboardShell from "../components/DashboardShell"; 
 import { useEffect, useState } from 'react';
@@ -19,27 +18,27 @@ export default function RootLayout({
   useEffect(() => {
     setIsMounted(true);
     const isLogged = sessionStorage.getItem('seu_admin_logged');
-    if (!isLogged && pathname !== '/login') {
+    
+    // Jodi admin login kora na thake ebong user dashboard ba protected route-e enter korte chay
+    if (!isLogged && pathname.startsWith('/dashboard')) {
       router.push('/login');
     } else {
       setIsAuthenticated(true);
     }
   }, [pathname, router]);
 
-  // যদি লগইন পেজে থাকে অথবা অথেন্টিকেটেড হয়, তবেই রেন্ডার হবে
-  const isLoginPage = pathname === '/login';
+  // Root landing page ('/') ba login page ('/login') hole DashboardShell hobe na
+  const isPublicPage = pathname === '/' || pathname === '/login';
 
   return (
     <html lang="en">
       <body className="antialiased bg-[#0f172a] text-slate-200">
-        {isLoginPage ? (
+        {isPublicPage ? (
           children
         ) : (
-          isAuthenticated && (
-            <DashboardShell>
-              {children}
-            </DashboardShell>
-          )
+          <DashboardShell>
+            {children}
+          </DashboardShell>
         )}
       </body>
     </html>

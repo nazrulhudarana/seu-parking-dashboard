@@ -37,7 +37,7 @@ export default function LoginPage() {
 
       if (username === ADMIN_USER && hashedInputPassword === ADMIN_PASS_HASH) {
         sessionStorage.setItem('seu_admin_logged', 'true');
-        router.push('/');
+        router.push('/dashboard'); // Ekhane '/' er bodole '/dashboard' route kore dewa holo
       } else {
         setError('Invalid username or password!');
       }
