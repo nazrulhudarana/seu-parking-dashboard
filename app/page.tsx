@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ref, onValue, get } from 'firebase/database';
 import { db } from '../lib/firebase';
-import { Car, CreditCard, Phone, Zap, RefreshCw, Shield, CheckCircle2, XCircle } from 'lucide-react';
+import { Car, CreditCard, Phone, Zap, RefreshCw, Shield, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -93,6 +93,23 @@ export default function CustomerLandingPage() {
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  // Client-side effect to handle payment query parameters without hydration mismatch
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const paymentStatus = query.get('payment');
+    const reason = query.get('reason');
+    const trxID = query.get('trxID');
+    const amount = query.get('amount');
+
+    if (paymentStatus === 'success' && trxID) {
+      setMessage({ text: `Payment Successful! TrxID: ${trxID}, Amount: ৳${amount}. Invoice sent to your email.`, type: 'success' });
+    } else if (paymentStatus === 'failed' || paymentStatus === 'execution_failed') {
+      setMessage({ text: `Payment Failed: ${reason ? decodeURIComponent(reason) : 'Transaction could not be completed.'}`, type: 'error' });
+    } else if (paymentStatus === 'cancelled') {
+      setMessage({ text: 'bKash Payment was cancelled.', type: 'error' });
+    }
+  }, []);
 
   useEffect(() => {
     const unsubAvail = onValue(ref(db, 'System/AvailableSlots'), (s) => s.exists() && setAvailableSlots(s.val()));
@@ -224,6 +241,7 @@ export default function CustomerLandingPage() {
               src="/logo.PNG" 
               alt="SEU Parking Logo" 
               fill 
+              sizes="(max-width: 768px) 100vw, 128px"
               className="object-contain drop-shadow-[0_0_10px_rgba(6,182,212,0.4)]"
               priority
             />
@@ -247,6 +265,17 @@ export default function CustomerLandingPage() {
           Monitor real-time slot occupancy and instantly top-up your RFID parking wallet securely via bKash.
         </p>
       </div>
+
+      {/* Alert Pop-up Notification */}
+      {message && (
+        <div className="max-w-5xl mx-auto">
+          <div className={clsx("p-4 rounded-2xl text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-xl border", message.type === 'success' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-rose-500/10 text-rose-400 border-rose-500/30")}>
+            {message.type === 'success' ? <CheckCircle2 size={20} className="shrink-0" /> : <AlertTriangle size={20} className="shrink-0" />}
+            <span className="flex-1">{message.text}</span>
+            <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-white text-xs font-mono px-2 py-1 bg-slate-900 rounded-lg">Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -305,13 +334,6 @@ export default function CustomerLandingPage() {
             {loading ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />} Lookup Account
           </button>
         </form>
-
-        {message && (
-          <div className={clsx("p-3 rounded-xl text-xs font-semibold flex items-center gap-2", message.type === 'success' ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/10 text-rose-400 border border-rose-500/30")}>
-            {message.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-            <span>{message.text}</span>
-          </div>
-        )}
 
         {searchedUser && searchedUid && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-5 sm:p-6 rounded-2xl bg-slate-950 border border-pink-500/30 space-y-6 shadow-inner">
