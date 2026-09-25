@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ref, onValue, set } from 'firebase/database';
 import { db } from '../../lib/firebase';
-import { Settings, Sliders, Shield, Wifi, Cpu, Save, CheckCircle2, Power, RefreshCw, Clock, CreditCard, AlertTriangle } from 'lucide-react';
+import { Settings, Sliders, Shield, Wifi, Cpu, Save, CheckCircle2, Power, RefreshCw, Clock, CreditCard, AlertTriangle, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [systemStatus, setSystemStatus] = useState<string>('Online');
   const [saving, setSaving] = useState<boolean>(false);
   const [savingHardware, setSavingHardware] = useState<boolean>(false);
+  const [savingSmtp, setSavingSmtp] = useState<boolean>(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [manualTime, setManualTime] = useState<string>('');
 
@@ -29,6 +30,14 @@ export default function SettingsPage() {
     gateOpenDuration: 3,
     ultrasonicThreshold: 15,
     ntpTimezoneOffset: 21600
+  });
+
+  // SMTP Email Configuration States
+  const [smtpConfig, setSmtpConfig] = useState({
+    host: 'smtp.gmail.com',
+    port: 587,
+    user: '',
+    pass: ''
   });
 
   useEffect(() => {
@@ -59,10 +68,16 @@ export default function SettingsPage() {
       }
     });
 
+    const unsubSmtp = onValue(ref(db, 'SMTPConfig'), (s) => {
+      if (s.exists()) {
+        setSmtpConfig(s.val());
+      }
+    });
+
     const now = new Date();
     setManualTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
 
-    return () => { unsubReg(); unsubStatus(); unsubBkash(); unsubHardware(); };
+    return () => { unsubReg(); unsubStatus(); unsubBkash(); unsubHardware(); unsubSmtp(); };
   }, []);
 
   const handleToggleRegMode = async (val: boolean) => {
@@ -89,7 +104,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Real bKash API Handshake Validation & Save
   const handleSaveBkashConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -128,7 +142,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Save Hardware & Gate Parameters to Firebase
   const handleSaveHardwareConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingHardware(true);
@@ -145,11 +158,27 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveSmtpConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSmtp(true);
+    setMessage(null);
+
+    try {
+      await set(ref(db, 'SMTPConfig'), smtpConfig);
+      setSavingSmtp(false);
+      setMessage({ text: 'SMTP Email settings successfully saved to database!', type: 'success' });
+      setTimeout(() => setMessage(null), 3500);
+    } catch (err) {
+      setSavingSmtp(false);
+      setMessage({ text: 'Failed to save SMTP configuration.', type: 'error' });
+    }
+  };
+
   return (
     <div className="space-y-6 pb-10">
       <div>
-        <h2 className="text-2xl font-bold text-white tracking-wide">System & bKash Gateway Settings</h2>
-        <p className="text-sm text-slate-400 mt-1">Configure hardware preferences, gate timers, and connect real-life bKash Tokenized API credentials.</p>
+        <h2 className="text-2xl font-bold text-white tracking-wide">System & Gateway Settings</h2>
+        <p className="text-sm text-slate-400 mt-1">Configure hardware preferences, gate timers, bKash credentials, and SMTP email notifications.</p>
       </div>
 
       {message && (
@@ -232,7 +261,75 @@ export default function SettingsPage() {
               className="w-full py-3.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2"
             >
               {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-              {saving ? 'Verifying with bKash Tokenized API...' : 'Authenticate & Connect bKash Gateway'}
+              {saving ? 'Verifying with bKash API...' : 'Authenticate & Connect bKash Gateway'}
+            </button>
+          </div>
+        </form>
+
+        {/* SMTP Email Configuration Panel */}
+        <form onSubmit={handleSaveSmtpConfig} className="glass-panel p-6 rounded-2xl border border-slate-700/50 bg-slate-900/80 shadow-xl space-y-5 lg:col-span-2">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 border-b border-slate-800 pb-4">
+            <Mail className="text-cyan-400" size={20} /> SMTP Email Configuration (For PDF Invoices)
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">SMTP Host</label>
+              <input 
+                type="text" 
+                value={smtpConfig.host}
+                onChange={(e) => setSmtpConfig({...smtpConfig, host: e.target.value})}
+                placeholder="smtp.gmail.com" 
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white text-xs font-mono outline-none focus:border-cyan-500" 
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">SMTP Port</label>
+              <input 
+                type="number" 
+                value={smtpConfig.port}
+                onChange={(e) => setSmtpConfig({...smtpConfig, port: Number(e.target.value)})}
+                placeholder="587" 
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white text-xs font-mono outline-none focus:border-cyan-500" 
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Sender Email (User)</label>
+              <input 
+                type="email" 
+                value={smtpConfig.user}
+                onChange={(e) => setSmtpConfig({...smtpConfig, user: e.target.value})}
+                placeholder="your_email@gmail.com" 
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white text-xs font-mono outline-none focus:border-cyan-500" 
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Email App Password</label>
+              <input 
+                type="password" 
+                value={smtpConfig.pass}
+                onChange={(e) => setSmtpConfig({...smtpConfig, pass: e.target.value})}
+                placeholder="Gmail App Password" 
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white text-xs font-mono outline-none focus:border-cyan-500" 
+                required
+              />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button 
+              type="submit" 
+              disabled={savingSmtp}
+              className="w-full py-3.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+              {savingSmtp ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+              {savingSmtp ? 'Saving SMTP Config...' : 'Save SMTP Settings to Database'}
             </button>
           </div>
         </form>
@@ -290,7 +387,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Hardware & Barrier Configurations (NOW WITH SAVE BUTTON!) */}
+        {/* Hardware & Barrier Configurations */}
         <form onSubmit={handleSaveHardwareConfig} className="glass-panel p-6 rounded-2xl border border-slate-700/50 bg-slate-900/80 shadow-xl space-y-5">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2 border-b border-slate-800 pb-4">
             <Cpu className="text-emerald-400" size={20} /> Hardware & Gate Parameters

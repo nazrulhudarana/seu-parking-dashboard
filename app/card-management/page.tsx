@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { ref, onValue, set, remove, get } from 'firebase/database';
 import { db } from '../../lib/firebase';
-import { CreditCard, Plus, Trash2, Shield, Wifi, AlertCircle, Phone } from 'lucide-react';
+import { CreditCard, Plus, Trash2, Shield, Wifi, AlertCircle, Phone, Mail } from 'lucide-react';
 import clsx from 'clsx';
 
 interface CardUser {
   uid: string;
   name: string;
+  email: string;
   phone: string;
   vehicleNumber: string;
   vehicleModel: string;
@@ -20,6 +21,7 @@ interface CardUser {
 export default function CardManagement() {
   const [cards, setCards] = useState<CardUser[]>([]);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [uid, setUid] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
@@ -67,6 +69,7 @@ export default function CardManagement() {
         if (cardSnap.exists()) {
           const userData = cardSnap.val();
           setName(userData.name || '');
+          setEmail(userData.email || '');
           setPhone(userData.phone || '');
           setVehicleNumber(userData.vehicleNumber || '');
           setVehicleModel(userData.vehicleModel || '');
@@ -74,6 +77,7 @@ export default function CardManagement() {
           setExistingUserNotice(`⚠️ This card is already registered to "${userData.name}". You can modify and save to update details.`);
         } else {
           setName('');
+          setEmail('');
           setPhone('');
           setVehicleNumber('');
           setVehicleModel('');
@@ -98,6 +102,7 @@ export default function CardManagement() {
     lastProcessedScan.current = '';
     set(ref(db, 'System/CardRegistrationMode'), false);
     setName('');
+    setEmail('');
     setPhone('');
     setUid('');
     setVehicleNumber('');
@@ -112,6 +117,7 @@ export default function CardManagement() {
     const cardRef = ref(db, `AuthorizedCards/${uid}`);
     await set(cardRef, {
       name,
+      email,
       phone,
       vehicleNumber,
       vehicleModel,
@@ -121,6 +127,7 @@ export default function CardManagement() {
     });
 
     setName('');
+    setEmail('');
     setPhone('');
     setUid('');
     setVehicleNumber('');
@@ -190,6 +197,12 @@ export default function CardManagement() {
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter full name" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" required />
             </div>
 
+            {/* Email Input Field Added */}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">Email Address</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="e.g. user@example.com" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" required />
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">Phone Number</label>
               <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +880 1XXXXXXXXX" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
@@ -248,6 +261,9 @@ export default function CardManagement() {
                     <tr key={card.uid} className="hover:bg-slate-800/40 transition-colors">
                       <td className="py-3.5 px-4 font-medium text-white">
                         <div>{card.name}</div>
+                        <div className="text-xs text-cyan-400 font-mono flex items-center gap-1 mt-0.5">
+                          <Mail size={11} /> {card.email || "No Email"}
+                        </div>
                         <div className="text-xs text-slate-400 font-mono flex items-center gap-1 mt-0.5">
                           <Phone size={11} className="text-emerald-400" /> {card.phone || "No Phone"}
                         </div>

@@ -6,6 +6,7 @@ import { db } from '../lib/firebase';
 import { Car, CreditCard, Phone, Zap, RefreshCw, Shield, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import clsx from 'clsx';
 
 const TopDownCar = ({ color }: { color: string }) => {
@@ -218,14 +219,14 @@ export default function CustomerLandingPage() {
       {/* Top Navbar */}
       <div className="max-w-5xl mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-bold shadow-inner">
-            <Car size={20} />
-          </div>
-          <div>
-            <h2 className="text-sm md:text-base font-black tracking-wider uppercase bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
-              SEU Smart Parking
-            </h2>
-            <p className="text-[9px] md:text-[10px] text-slate-400 font-mono">IoT Telemetry Hub</p>
+          <div className="relative w-32 h-10 flex items-center justify-start">
+            <Image 
+              src="/logo.PNG" 
+              alt="SEU Parking Logo" 
+              fill 
+              className="object-contain drop-shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+              priority
+            />
           </div>
         </div>
 
@@ -337,7 +338,7 @@ export default function CustomerLandingPage() {
                 ))}
               </div>
 
-              {/* Custom Amount & bKash Payment Trigger Button (Placed nicely at bottom) */}
+              {/* Custom Amount & bKash Payment Trigger Button */}
               <div className="space-y-3 pt-2">
                 <input 
                   type="number" 
