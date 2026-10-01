@@ -19,8 +19,8 @@
 BLECharacteristic *pCharacteristic;
 
 // ==== FIREBASE CREDENTIALS ====
-#define FIREBASE_HOST "seu-parking-default-rtdb.firebaseio.com"
-#define FIREBASE_AUTH "ztRKzrHSvVerL5DtTclKn06qpIuI3iDxQbyvuuoD"
+#define FIREBASE_HOST "your firebase host"
+#define FIREBASE_AUTH "your firebase auth"
 
 // ==== VERCEL BACKEND API URL ====
 const char* serverApiUrl = "https://seu-parking-dashboard.vercel.app/api/parking/notify";
